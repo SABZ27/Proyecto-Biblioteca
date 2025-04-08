@@ -188,7 +188,7 @@ class LibroResponse(BaseModel):
 
 @app.get("/libros/", response_model = List[LibroResponse])
 def read_all_libros(db: Session = Depends(get_db)):
-    return db.query(Libro).all()
+    return db.query(Libro).order_by(Libro.ID.desc()).all()
 
 
 @app.post("/libros/", response_model = LibroResponse, status_code = status.HTTP_201_CREATED)

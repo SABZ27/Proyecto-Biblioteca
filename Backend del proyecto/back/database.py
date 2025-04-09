@@ -6,7 +6,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import Column, Integer, String, Boolean, Enum, DateTime
 from datetime import datetime
 
-SQLALCHEMY_DATABASE_URL = "mysql+pymysql://root:admin@localhost:3306/biblioteca"
+SQLALCHEMY_DATABASE_URL = "mysql+pymysql://root:TheSABZ2727092006_RBLB012@localhost:3307/biblioteca_iub"
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

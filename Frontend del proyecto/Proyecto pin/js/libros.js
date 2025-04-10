@@ -96,12 +96,14 @@ function setupFormValidation() {
 function setupCRUD() {
     document.addEventListener('click', function (e) {
         if (e.target.classList.contains('bi-trash3')) {
-            deleteRow(e.target);
+            const row = e.target.closest('tr');
+            const bookId = row.querySelector('th').textContent;
+            deleteBook(bookId, row);
         }
         if (e.target.classList.contains('bi-pencil-square')) {
-            // Botón deshabilitado según solicitud
-            e.preventDefault();
-            showAlert('La edición está deshabilitada', 'info');
+            const row = e.target.closest('tr');
+            const bookId = row.querySelector('th').textContent;
+            openEditModal(bookId);
         } else if (e.target.classList.contains('bi-eye')) {
             const bookId = e.target.closest('.view-btn').getAttribute('data-id');
             viewBookDetails(bookId);
@@ -109,15 +111,237 @@ function setupCRUD() {
     });
 }
 
-function deleteRow(deleteButton) {
-    if (confirm('¿Está seguro de eliminar este registro?')) {
-        const row = deleteButton.closest('tr');
-        row.remove();
-        showAlert('Registro eliminado correctamente', 'success');
+async function openEditModal(bookId) {
+    try {
+        const response = await fetch(`${URL}libros/${bookId}`);
+        if (!response.ok) {
+            throw new Error('Libro no encontrado');
+        }
+        const book = await response.json();
+        
+        // Llenar el formulario de edición
+        document.getElementById('editBookId').value = book.ID;
+        document.getElementById('editAutor').value = book.Autor;
+        document.getElementById('editTitulo').value = book.Titulo;
+        document.getElementById('editPrograma').value = book.Programa;
+        document.getElementById('editItem').value = book.Item;
+        document.getElementById('editSignatura').value = book.Signatura;
+        document.getElementById('editAreas').value = book.Areas;
+        document.getElementById('editEjemplar').value = book.Ejemplar;
+        document.getElementById('editEditorial').value = book.Editorial;
+        document.getElementById('editAnio').value = book.Año;
+        document.getElementById('editIdioma').value = book.Idioma;
+        document.getElementById('editObservaciones').value = book.Observaciones || '';
+        document.getElementById('editPrecio').value = book.Precio || '';
+        document.getElementById('editProveedor').value = book.Proveedor || '';
+        document.getElementById('editRegistroLinea').value = book.Registro_en_linea || '';
+        
+        // Configurar el evento de guardado
+        document.getElementById('saveEditBtn').onclick = () => saveBookChanges(bookId);
+        
+        // Mostrar el modal
+        const editModal = new bootstrap.Modal(document.getElementById('editBookModal'));
+        editModal.show();
+        
+    } catch (error) {
+        console.error('Error al cargar libro para editar:', error);
+        showAlert('Error al cargar el libro para editar', 'danger');
+    }
+}
+
+// Función para guardar los cambios
+async function saveBookChanges(originalBookId) {
+    const form = document.getElementById('editBookForm');
+    const bookId = document.getElementById('editBookId').value;
+    
+    if (!validateEditForm()) {
+        return;
+    }
+
+    const bookData = {
+        Autor: document.getElementById('editAutor').value.trim(),
+        Titulo: document.getElementById('editTitulo').value.trim(),
+        Programa: document.getElementById('editPrograma').value.trim(),
+        Item: parseInt(document.getElementById('editItem').value.trim()),
+        Signatura: document.getElementById('editSignatura').value.trim(),
+        Areas: parseInt(document.getElementById('editAreas').value.trim()),
+        Ejemplar: parseInt(document.getElementById('editEjemplar').value.trim()),
+        Editorial: document.getElementById('editEditorial').value.trim(),
+        Año: parseInt(document.getElementById('editAnio').value.trim()),
+        Idioma: document.getElementById('editIdioma').value.trim(),
+        Observaciones: document.getElementById('editObservaciones').value.trim() || null,
+        Precio: document.getElementById('editPrecio').value.trim() || null,
+        Proveedor: document.getElementById('editProveedor').value.trim() || null,
+        Registro_en_linea: document.getElementById('editRegistroLinea').value || null
+    };
+
+    try {
+        showLoading(true, '#saveEditBtn');
+        
+        const response = await fetch(`${URL}libros/${bookId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(bookData)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || 'Error al actualizar el libro');
+        }
+
+        const updatedBook = await response.json();
+        showAlert('success', 'Libro actualizado correctamente');
+        
+        // Cerrar el modal
+        const editModal = bootstrap.Modal.getInstance(document.getElementById('editBookModal'));
+        editModal.hide();
+        
+        // Recargar los datos
+        await loadBooks();
+        
+    } catch (error) {
+        console.error('Error al actualizar libro:', error);
+        showAlert('danger', `Error al actualizar: ${error.message}`);
+    } finally {
+        showLoading(false, '#saveEditBtn');
+    }
+}
+
+// Función para validar el formulario de edición
+function validateEditForm() {
+    const requiredFields = [
+        'editAutor', 'editTitulo', 'editPrograma', 'editItem',
+        'editSignatura', 'editAreas', 'editEjemplar',
+        'editEditorial', 'editAnio', 'editIdioma'
+    ];
+
+    let isValid = true;
+
+    requiredFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (!field.value.trim()) {
+            markFieldAsInvalid(field, `El campo es obligatorio`);
+            isValid = false;
+        } else if (['editItem', 'editAreas', 'editEjemplar', 'editAnio'].includes(fieldId)) {
+            if (isNaN(field.value.trim())) {
+                markFieldAsInvalid(field, `Debe ser un número`);
+                isValid = false;
+            }
+        }
+    });
+
+    return isValid;
+}
+
+// Función para marcar campos inválidos
+function markFieldAsInvalid(field, message) {
+    field.classList.add('is-invalid');
+    
+    let feedback = field.nextElementSibling;
+    if (!feedback || !feedback.classList.contains('invalid-feedback')) {
+        feedback = document.createElement('div');
+        feedback.className = 'invalid-feedback';
+        field.parentNode.appendChild(feedback);
+    }
+    feedback.textContent = message;
+}
+
+// Modificar showLoading para aceptar selector específico
+function showLoading(show, selector = null) {
+    const button = selector ? document.querySelector(selector) : document.querySelector('#libroForm button[type="submit"]');
+    if (button) {
+        if (show) {
+            button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Procesando...';
+            button.disabled = true;
+        } else {
+            const originalText = selector === '#saveEditBtn' ? 'Guardar Cambios' : 'Guardar';
+            button.innerHTML = originalText;
+            button.disabled = false;
+        }
+    }
+}
+
+// Función mejorada para eliminar libros
+async function deleteBook(bookId, rowElement) {
+    try {
+        // Mostrar confirmación antes de eliminar
+        const isConfirmed = await showDeleteConfirmation();
+        if (!isConfirmed) return;
+
+        showAlert('Eliminando libro...', 'info');
+
+        const response = await fetch(`${URL}libros/${bookId}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || 'Error al eliminar el libro');
+        }
+
+        // Eliminar la fila de la tabla solo después de confirmar la eliminación en la base de datos
+        rowElement.remove();
+        showAlert('Libro eliminado correctamente', 'success');
+        
+        // Actualizar la paginación
         if (document.querySelector('.pagination')) {
             setupPagination();
         }
+
+    } catch (error) {
+        console.error('Error al eliminar libro:', error);
+        showAlert(`Error al eliminar libro: ${error.message}`, 'danger');
     }
+}
+
+// Función para mostrar el diálogo de confirmación personalizado
+function showDeleteConfirmation() {
+    return new Promise((resolve) => {
+        // Crear el modal de confirmación si no existe
+        if (!document.getElementById('deleteConfirmationModal')) {
+            const modalHTML = `
+            <div class="modal fade" id="deleteConfirmationModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header bg-danger text-white">
+                            <h5 class="modal-title">Confirmar eliminación</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>¿Está seguro que desea eliminar este libro permanentemente?</p>
+                            <p class="fw-bold">Esta acción no se puede deshacer.</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                                <i class="bi bi-trash3"></i> Eliminar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+        }
+
+        const modal = new bootstrap.Modal(document.getElementById('deleteConfirmationModal'));
+        modal.show();
+
+        // Configurar el botón de confirmación
+        const confirmBtn = document.getElementById('confirmDeleteBtn');
+        confirmBtn.onclick = () => {
+            modal.hide();
+            resolve(true);
+        };
+
+        // Configurar el evento cuando se cierra el modal sin confirmar
+        const modalElement = document.getElementById('deleteConfirmationModal');
+        modalElement.addEventListener('hidden.bs.modal', () => {
+            resolve(false);
+        });
+    });
 }
 
 // PAGINACIÓN
@@ -337,14 +561,27 @@ function populateTable(books) {
             <td class="text-start">${book.Idioma}</td>
             <td class="text-start">${virtualStatus}</td>
             <td class="text-start">
-                <button class="btn acp text-white ms-2" style="height: 38px;"><i class="bi bi-pencil-square"></i></button>
-                <button class="btn acp text-white ms-2" style="height: 38px;"><i class="bi bi-trash3"></i></button>
-                <button class="btn acp text-white ms-2 view-btn" style="height: 38px;" data-id="${book.ID}"><i class="bi bi-eye"></i></button>
+                <button class="btn btn-primary text-white ms-2 edit-btn" style="height: 38px;" data-id="${book.ID}">
+                    <i class="bi bi-pencil-square"></i>
+                </button>
+                <button class="btn btn-danger text-white ms-2" style="height: 38px;">
+                    <i class="bi bi-trash3"></i>
+                </button>
+                <button class="btn btn-info text-white ms-2 view-btn" style="height: 38px;" data-id="${book.ID}">
+                    <i class="bi bi-eye"></i>
+                </button>
             </td>
         `;
         tbody.appendChild(row);
     });
 
+    // Configurar eventos para los botones de edición
+    document.querySelectorAll('.edit-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const bookId = btn.getAttribute('data-id');
+            openEditModal(bookId);
+        });
+    });
     // Agregar event listeners para los botones de visualización
     document.querySelectorAll('.view-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -356,6 +593,7 @@ function populateTable(books) {
     loadFilterOptions(books);
     setupPagination();
 }
+
 async function viewBookDetails(bookId) {
     try {
         const response = await fetch(`${URL}libros/${bookId}`);
@@ -412,7 +650,6 @@ function showBookModal(book) {
                             </div>
                         </div>
                     </div>
-                    <!-- Se ha eliminado el modal-footer con el botón Cerrar -->
                 </div>
             </div>
         </div>
@@ -420,7 +657,7 @@ function showBookModal(book) {
         document.body.insertAdjacentHTML('beforeend', modalHTML);
     }
 
-    // Resto del código para actualizar los datos del modal...
+    // Actualizar los datos del modal
     document.getElementById('modalBookId').textContent = book.ID;
     document.getElementById('modalBookTitle').textContent = book.Titulo;
     document.getElementById('modalBookAuthor').textContent = book.Autor;
@@ -570,40 +807,4 @@ function showAlert(message, type) {
     setTimeout(() => {
         alert.remove();
     }, 3000);
-}
-
-function updateBooks(idBook) {
-    const myHeaders = new Headers();
-    myHeaders.append("Content-Type", "application/json");
-
-    const raw = JSON.stringify({
-        "Autor": "Magnus Carlsen 2",
-        "Titulo": "Estrategias Avanzadas de Ajedrez",
-        "Programa": "Especialización en juegos de estrategia",
-        "Item": 2,
-        "Signatura": "794.1/M38",
-        "Areas": 700,
-        "Ejemplar": 3,
-        "Editorial": "Editorial Planeta",
-        "Año": 2022,
-        "Idioma": "Español",
-        "Observaciones": "Adquisición 2024-1",
-        "Precio": "$45.000",
-        "Proveedor": "Librería Internacional",
-        "Registro_en_linea": "si"
-    });
-
-    const requestOptions = {
-        method: "PUT",
-        headers: myHeaders,
-        body: raw
-    };
-
-    fetch(`${URL}libros/${idBook}`, requestOptions)
-        .then((response) => response.json())
-        .then((result) =>{
-            alert("Actualización completada")
-            location.reload()
-        })
-        .catch((error) => console.error(error));
 }

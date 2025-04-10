@@ -6,7 +6,6 @@ from database import Libro, UserTable, Prestamos
 import database
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, timedelta
-
 # Importa el modelo y las funciones CRUD
 from database import SessionLocal, engine, UserTable
 

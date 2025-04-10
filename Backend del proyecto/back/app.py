@@ -1,17 +1,20 @@
+from os import access
+from pydantic import BaseModel, EmailStr, Field, validator
 from fastapi import FastAPI, Depends, HTTPException, status
 from pydantic import BaseModel
 from typing import List, Optional
 from sqlalchemy.orm import Session
-from database import Libro, UserTable, Prestamos
+from database import Libro, Prestamos
 import database
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, timedelta
-# Importa el modelo y las funciones CRUD
-from database import SessionLocal, engine, UserTable
+from database import SessionLocal, engine
+from models.models import UserTable
+from requests.user_request import UserCreateRequest
+from routers.access_router import access_router
 
 # Crea la base de datos (si no existe)
 database.Base.metadata.create_all(bind = engine)
-
 app = FastAPI()
 
 # Configuración de CORS
@@ -23,21 +26,13 @@ app.add_middleware(
     allow_headers = ["*"],  # Permite todos los encabezados
 )
 
+app.include_router(access_router)
+
+
 # Endpoint raíz
 @app.get("/")
 def read_root():
     return {"message": "API de la Biblioteca IUB. Accede a /docs para la documentación interactiva."}
-
-
-# Modelo Pydantic para usuarios
-class UserCreate(BaseModel):
-    nombre: str
-    identificacion: str
-    tipo: str
-    nivel_academico: Optional[str] = None
-    carrera: Optional[str] = None
-    username: str
-    password: str
 
 
 class UserUpdate(BaseModel):
@@ -52,7 +47,6 @@ class UserResponse(BaseModel):
     id: int
     nombre: str
     identificacion: str
-    tipo: str
     nivel_academico: Optional[str] = None
     carrera: Optional[str] = None
 
@@ -67,6 +61,7 @@ def get_db():
         yield db
     finally:
         db.close()
+
 
 # login de la aplicación
 @app.post("/login")
@@ -84,7 +79,7 @@ def read_all_users(db: Session = Depends(get_db)):
 
 
 @app.post("/usuarios/", response_model = UserResponse, status_code = status.HTTP_201_CREATED)
-def create_user(user: UserCreate, db: Session = Depends(get_db)):
+def create_user(user: UserCreateRequest, db: Session = Depends(get_db)):
     db_user = db.query(UserTable).filter(UserTable.identificacion == user.identificacion).first()
     if db_user:
         raise HTTPException(status_code = 400, detail = "La identificación ya está registrada")
@@ -352,7 +347,6 @@ def loan_get(loan_id: int, db: Session = Depends(get_db)):
 
 @app.post("/loan/{loan_id}")
 def loan_update(loan_id: int, request: LoanRequestDelivery, db: Session = Depends(get_db)):
-
     loan = db.query(Prestamos).filter(Prestamos.id == loan_id).first()
 
     if loan is None:
@@ -370,17 +364,20 @@ def loan_update(loan_id: int, request: LoanRequestDelivery, db: Session = Depend
 
     return loan
 
+
 @app.post("/login")
 def login(username: str, password: str, db: Session = Depends(get_db)):
     user = db.query(UserTable).filter(UserTable.username == username, UserTable.password == password).first()
     if user is None:
-        raise HTTPException(status_code=401, detail="Usuario o contraseña incorrectos")
-        
+        raise HTTPException(status_code = 401, detail = "Usuario o contraseña incorrectos")
+
     # Verificar si el usuario es administrador
     if user.tipo == "Administrador":
         verificar_prestamos_vencidos(db)  # Llamar a la función para verificar préstamos vencidos
 
     return {"message": "Inicio de sesión exitoso", "user": user.nombre}
+
+
 # Modificar la función para aceptar la sesión de la base de datos como parámetro
 def verificar_prestamos_vencidos(db: Session):
     try:
@@ -395,4 +392,3 @@ def verificar_prestamos_vencidos(db: Session):
         print(f"✔ Verificación completada. Préstamos vencidos actualizados.")
     except Exception as e:
         print(f"Error al verificar préstamos vencidos: {e}")
-

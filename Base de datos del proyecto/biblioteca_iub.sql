@@ -2,8 +2,8 @@
 -- version 5.2.1
 -- https://www.phpmyadmin.net/
 --
--- Servidor: 127.0.0.1:3307
--- Tiempo de generación: 07-04-2025 a las 19:09:18
+-- Servidor: 127.0.0.1
+-- Tiempo de generación: 17-04-2025 a las 22:30:52
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -18,7 +18,7 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Base de datos: `biblioteca`
+-- Base de datos: `biblioteca_iub`
 --
 
 -- --------------------------------------------------------
@@ -32,6 +32,21 @@ CREATE TABLE `contratistas` (
   `Editorial` varchar(100) NOT NULL,
   `NIT` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `library_access`
+--
+
+CREATE TABLE `library_access` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `message` varchar(255) NOT NULL,
+  `status` tinyint(1) NOT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -766,7 +781,7 @@ INSERT INTO `libros` (`ID`, `Autor`, `Titulo`, `Programa`, `Item`, `Signatura`, 
 CREATE TABLE `prestamos` (
   `id` int(11) NOT NULL,
   `user_id` int(11) NOT NULL,
-  `book_id` varchar(50) NOT NULL,
+  `book_id` int(11) DEFAULT NULL,
   `loan_date` varchar(50) NOT NULL,
   `delivery_date` varchar(50) NOT NULL,
   `entry_date` varchar(50) DEFAULT NULL,
@@ -775,14 +790,6 @@ CREATE TABLE `prestamos` (
   `created_at` datetime NOT NULL,
   `updated_at` datetime NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
-
---
--- Volcado de datos para la tabla `prestamos`
---
-
-INSERT INTO `prestamos` (`id`, `user_id`, `book_id`, `loan_date`, `delivery_date`, `entry_date`, `state`, `observations`, `created_at`, `updated_at`) VALUES
-(2, 2, '925', '2025-04-03 00:00:00', '2025-04-07 00:00:00', '2025-04-07 00:00:00', 'Devuelto', 'esta es la ibservacion', '2025-04-03 18:54:40', '2025-04-03 18:54:59'),
-(3, 2, '925', '2025-04-03 00:00:00', '2025-04-07 00:00:00', '2025-04-07 00:00:00', 'Devuelto', 'esta es la ibservacion', '2025-04-03 18:56:10', '2025-04-03 18:56:50');
 
 -- --------------------------------------------------------
 
@@ -798,20 +805,6 @@ CREATE TABLE `proveer` (
 -- --------------------------------------------------------
 
 --
--- Estructura de tabla para la tabla `roles`
---
-
-CREATE TABLE `roles` (
-  `id` int(11) NOT NULL,
-  `name` int(11) NOT NULL,
-  `description` varchar(50) NOT NULL,
-  `created_at` datetime NOT NULL,
-  `updated_at` datetime NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
-
--- --------------------------------------------------------
-
---
 -- Estructura de tabla para la tabla `usuarios`
 --
 
@@ -822,7 +815,7 @@ CREATE TABLE `usuarios` (
   `email` varchar(100) DEFAULT NULL,
   `phone` varchar(50) NOT NULL,
   `address` varchar(255) NOT NULL,
-  `role_id` int(11) NOT NULL,
+  `rol` enum('Administrador','Funcionario','Docente','Estudiante') NOT NULL,
   `password` varchar(255) NOT NULL,
   `identificacion` varchar(50) DEFAULT NULL,
   `nivel_academico` varchar(50) DEFAULT NULL,
@@ -840,6 +833,14 @@ ALTER TABLE `contratistas`
   ADD PRIMARY KEY (`ID`);
 
 --
+-- Indices de la tabla `library_access`
+--
+ALTER TABLE `library_access`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `ix_library_access_id` (`id`),
+  ADD KEY `fk_library_access_user` (`user_id`);
+
+--
 -- Indices de la tabla `libros`
 --
 ALTER TABLE `libros`
@@ -851,7 +852,9 @@ ALTER TABLE `libros`
 --
 ALTER TABLE `prestamos`
   ADD PRIMARY KEY (`id`),
-  ADD KEY `ix_prestamos_id` (`id`);
+  ADD KEY `ix_prestamos_id` (`id`),
+  ADD KEY `fk_prestamos_user` (`user_id`),
+  ADD KEY `fk_prestamos_book` (`book_id`);
 
 --
 -- Indices de la tabla `proveer`
@@ -859,13 +862,6 @@ ALTER TABLE `prestamos`
 ALTER TABLE `proveer`
   ADD PRIMARY KEY (`Libro_ID`,`Contratista_ID`),
   ADD KEY `Contratista_ID` (`Contratista_ID`);
-
---
--- Indices de la tabla `roles`
---
-ALTER TABLE `roles`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `ix_roles_id` (`id`);
 
 --
 -- Indices de la tabla `usuarios`
@@ -888,6 +884,12 @@ ALTER TABLE `contratistas`
   MODIFY `ID` int(11) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT de la tabla `library_access`
+--
+ALTER TABLE `library_access`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT de la tabla `libros`
 --
 ALTER TABLE `libros`
@@ -900,27 +902,28 @@ ALTER TABLE `prestamos`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
--- AUTO_INCREMENT de la tabla `roles`
---
-ALTER TABLE `roles`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT de la tabla `usuarios`
---
-ALTER TABLE `usuarios`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
-
---
 -- Restricciones para tablas volcadas
 --
+
+--
+-- Filtros para la tabla `library_access`
+--
+ALTER TABLE `library_access`
+  ADD CONSTRAINT `fk_library_access_user` FOREIGN KEY (`user_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE;
+
+--
+-- Filtros para la tabla `prestamos`
+--
+ALTER TABLE `prestamos`
+  ADD CONSTRAINT `fk_prestamos_book` FOREIGN KEY (`book_id`) REFERENCES `libros` (`ID`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_prestamos_user` FOREIGN KEY (`user_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE;
 
 --
 -- Filtros para la tabla `proveer`
 --
 ALTER TABLE `proveer`
-  ADD CONSTRAINT `proveer_ibfk_1` FOREIGN KEY (`Libro_ID`) REFERENCES `libros` (`ID`) ON DELETE CASCADE,
-  ADD CONSTRAINT `proveer_ibfk_2` FOREIGN KEY (`Contratista_ID`) REFERENCES `contratistas` (`ID`) ON DELETE CASCADE;
+  ADD CONSTRAINT `fk_proveer_contratista` FOREIGN KEY (`Contratista_ID`) REFERENCES `contratistas` (`ID`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_proveer_libro` FOREIGN KEY (`Libro_ID`) REFERENCES `libros` (`ID`) ON DELETE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

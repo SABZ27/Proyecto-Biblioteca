@@ -10,6 +10,61 @@ const initialData = [
         nombre: "Juan Pérez",
         datos: "Estudiante - Ingeniería",
         estado: "Activo"
+    },
+    {
+        id: 2,
+        codigo_referencia: "LIB-002",
+        titulo: "Python para Principiantes",
+        fecha_prestamo: "2023-11-01",
+        fecha_devolucion: "2023-12-01",
+        datos_libro: "Prestado",
+        nombre: "María García",
+        datos: "Estudiante - Ciencias",
+        estado: "Vencido"
+    },
+    {
+        id: 3,
+        codigo_referencia: "LIB-003",
+        titulo: "Aprendiendo HTML5",
+        fecha_prestamo: "2023-11-20",
+        fecha_devolucion: "2023-12-20",
+        datos_libro: "Reservado",
+        nombre: "Carlos López",
+        datos: "Profesor - Informática",
+        estado: "Pendiente"
+    },
+    {
+        id: 4,
+        codigo_referencia: "LIB-004",
+        titulo: "CSS Avanzado",
+        fecha_prestamo: "2023-12-05",
+        fecha_devolucion: "2024-01-05",
+        datos_libro: "Disponible",
+        nombre: "Ana Martínez",
+        datos: "Estudiante - Diseño",
+        estado: "Activo"
+    },
+    {
+        id: 5,
+        codigo_referencia: "LIB-005",
+        titulo: "Bases de Datos SQL",
+        fecha_prestamo: "2023-12-10",
+        fecha_devolucion: "2024-01-10",
+        datos_libro: "Prestado",
+        nombre: "Luis Rodríguez",
+        datos: "Estudiante - Ingeniería",
+        estado: "Reservado"
+    },
+    {
+        id: 6,
+        codigo_referencia: "LIB-006",
+        titulo: "Machine Learning Básico",
+        fecha_prestamo: "2023-12-15",
+        fecha_devolucion: "2024-01-15",
+        datos_libro: "Disponible",
+        nombre: "Sofía Hernández",
+        datos: "Investigador - IA",
+        estado: "Disponible"
     }
 ];
 

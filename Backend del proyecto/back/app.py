@@ -13,27 +13,23 @@ from models.models import UserTable
 from requests.user_request import UserCreateRequest
 from routers.access_router import access_router
 
-# Crea la base de datos (si no existe)
 database.Base.metadata.create_all(bind = engine)
 app = FastAPI()
 
-# Configuración de CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins = ["*"],  # Permite todos los orígenes
+    allow_origins = ["*"],
     allow_credentials = True,
-    allow_methods = ["*"],  # Permite todos los métodos
-    allow_headers = ["*"],  # Permite todos los encabezados
+    allow_methods = ["*"],
+    allow_headers = ["*"],
 )
 
 app.include_router(access_router)
 
 
-# Endpoint raíz
 @app.get("/")
 def read_root():
     return {"message": "API de la Biblioteca IUB. Accede a /docs para la documentación interactiva."}
-
 
 class UserUpdate(BaseModel):
     nombre: Optional[str] = None
@@ -54,7 +50,6 @@ class UserResponse(BaseModel):
         from_attributes = True
 
 
-# Dependencia para la base de datos
 def get_db():
     db = SessionLocal()
     try:
@@ -63,7 +58,6 @@ def get_db():
         db.close()
 
 
-# login de la aplicación
 @app.post("/login")
 def login(username: str, password: str, db: Session = Depends(get_db)):
     user = db.query(UserTable).filter(UserTable.username == username, UserTable.password == password).first()
@@ -72,7 +66,6 @@ def login(username: str, password: str, db: Session = Depends(get_db)):
     return {"message": "Inicio de sesión exitoso", "user": user.nombre}
 
 
-# Endpoints CRUD para usuarios
 @app.get("/usuarios/", response_model = List[UserResponse])
 def read_all_users(db: Session = Depends(get_db)):
     return db.query(UserTable).all()
@@ -118,7 +111,6 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
     db.delete(db_user)
     db.commit()
 
-    # devolver un json con el mensaje de usuario eliminado
     return db_user
 
 
@@ -176,9 +168,77 @@ class LibroResponse(BaseModel):
 
     class Config:
         from_attributes = True
+        
 
+@app.get("/libros/categoria", response_model=List[LibroResponse])
+def get_libros_por_xcategoria(categoria: str, db: Session = Depends(get_db)):
+    categoria_programa = {
+        "basica": ["Básicas y transversales"],
+        "economicas": [
+            "Ciencias Económicas y Administrativas",
+            "Administración de Negocios Internacionales",
+            "Tecnología en Gestión Logística Internacional",
+            "Operaciones del Comercio Exterior",
+            "Técnica Profesional En Operaciones Del Comercio",
+            "Gestión Administrativa comercial",
+            "Tecnología en Gestión Administrativa",
+            "Tecnología En Gestión Empresarial",
+            "Gestión Empresarial",
+            "Técnico Profesional en Operaciones Logísticas",
+            "Técnica Profesional en Operaciones de Procesos empresariales",
+            "Técnica Profesional en Operación de Procesos empresariales",
+            "Técnica profesional en Logística",
+            "Tecnología en Gestión de Sistemas Integrados"
+        ],
+        "diseno": [
+            "Diseño Gráfico",
+            "Producción Gráfica Multimedial",
+            "Diseño Gráfico Y Multimedia"
+        ],
+        "industrial": [
+            "Ingeniería Industrial",
+            "Técnica profesional en Operación de Procesos Industriales",
+            "Tecnología en Gestión de Sistemas Integrados"
+        ],
+        "electrica": [
+            "Ingeniería Eléctrica"
+        ],
+        "seguridad": [
+            "Ingeniería en Seguridad y Salud en el Trabajo",
+            "Técnica profesional en Gestión de Seguridad y Salud en el Trabajo",
+            "Tecnología en Gestión de Seguridad y Salud en el trabajo",
+            "Salud Ocupacional",
+            "Tecnología en Gestión de Sistemas Integrados"
+        ],
+        "mecatronica": [
+            "Ingeniería Mecatrónica",
+            "Electromecánica",
+            "Ingeniería mecatrónica",
+            "Mecatrónica",
+            "Tecnología en Gestión de Sistemas Integrados"
+        ],
+        "telematica": [
+            "Ingeniería Telemática",
+            "Mantenimiento de Redes de Telecomunicaciones",
+            "Tecnología en Gestión de Sistemas Integrados"
+        ],
+        "licenciatura": [
+            "Licenciatura En Educación Básica Primaria"
+        ]
+    }
 
-# Endpoints CRUD para libros
+    programas = categoria_programa.get(categoria.lower())
+
+    if not programas:
+        raise HTTPException(status_code=404, detail="Categoría no encontrada")
+
+    libros = db.query(Libro).filter(Libro.Programa.in_(programas)).all()
+
+    if not libros:
+        raise HTTPException(status_code=404, detail="No se encontraron libros para esta categoría")
+
+    return libros
+
 
 @app.get("/libros/", response_model = List[LibroResponse])
 def read_all_libros(db: Session = Depends(get_db)):

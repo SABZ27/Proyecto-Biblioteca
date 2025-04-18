@@ -49,7 +49,6 @@ class UserResponse(BaseModel):
     class Config:
         from_attributes = True
 
-
 def get_db():
     db = SessionLocal()
     try:
@@ -57,13 +56,36 @@ def get_db():
     finally:
         db.close()
 
+class LoginData(BaseModel):
+    identificacion: str
+    password: str
 
 @app.post("/login")
-def login(username: str, password: str, db: Session = Depends(get_db)):
-    user = db.query(UserTable).filter(UserTable.username == username, UserTable.password == password).first()
+def login(data: LoginData, db: Session = Depends(get_db)):
+    user = db.query(UserTable).filter(
+        UserTable.identificacion == data.identificacion,
+        UserTable.password == data.password
+    ).first()
+
     if user is None:
-        raise HTTPException(status_code = 401, detail = "Usuario o contraseña incorrectos")
-    return {"message": "Inicio de sesión exitoso", "user": user.nombre}
+        raise HTTPException(status_code=401, detail="Usuario o contraseña incorrectos")
+
+    return {"message": "Inicio de sesión exitoso", "user": user}
+
+
+def verificar_prestamos_vencidos(db: Session):
+    try:
+        prestamos_activos = db.query(Prestamos).filter(Prestamos.state == "Activo").all()
+        fecha_actual = datetime.now()
+
+        for prestamo in prestamos_activos:
+            if prestamo.delivery_date < fecha_actual:
+                prestamo.state = "Vencido"
+
+        db.commit()
+        print(f"✔ Verificación completada. Préstamos vencidos actualizados.")
+    except Exception as e:
+        print(f"Error al verificar préstamos vencidos: {e}")
 
 
 @app.get("/usuarios/", response_model = List[UserResponse])
@@ -423,32 +445,3 @@ def loan_update(loan_id: int, request: LoanRequestDelivery, db: Session = Depend
     db.refresh(loan)
 
     return loan
-
-
-@app.post("/login")
-def login(username: str, password: str, db: Session = Depends(get_db)):
-    user = db.query(UserTable).filter(UserTable.username == username, UserTable.password == password).first()
-    if user is None:
-        raise HTTPException(status_code = 401, detail = "Usuario o contraseña incorrectos")
-
-    # Verificar si el usuario es administrador
-    if user.tipo == "Administrador":
-        verificar_prestamos_vencidos(db)  # Llamar a la función para verificar préstamos vencidos
-
-    return {"message": "Inicio de sesión exitoso", "user": user.nombre}
-
-
-# Modificar la función para aceptar la sesión de la base de datos como parámetro
-def verificar_prestamos_vencidos(db: Session):
-    try:
-        prestamos_activos = db.query(Prestamos).filter(Prestamos.state == "Activo").all()
-        fecha_actual = datetime.now()
-
-        for prestamo in prestamos_activos:
-            if prestamo.delivery_date < fecha_actual:
-                prestamo.state = "Vencido"
-
-        db.commit()
-        print(f"✔ Verificación completada. Préstamos vencidos actualizados.")
-    except Exception as e:
-        print(f"Error al verificar préstamos vencidos: {e}")

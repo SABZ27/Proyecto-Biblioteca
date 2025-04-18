@@ -9,7 +9,7 @@ class UserCreateRequest(BaseModel):
     email: EmailStr = Field(..., description = "Correo electrónico del usuario")
     phone: str = Field(..., min_length = 5, max_length = 50, description = "Número de teléfono")
     address: str = Field(..., min_length = 5, max_length = 255, description = "Dirección completa")
-    role_id: int = Field(..., description = "ID del rol asignado")
+    rol: str = Field(..., description="Rol asignado al usuario")
     password: str = Field(..., min_length = 6, description = "Contraseña del usuario")
     identificacion: str = Field(..., min_length = 5, max_length = 50, description = "Número de identificación/DNI")
     nivel_academico: Optional[str] = Field(None, max_length = 50, description = "Nivel académico del usuario")

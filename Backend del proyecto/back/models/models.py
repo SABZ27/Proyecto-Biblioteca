@@ -13,7 +13,7 @@ class UserTable(Base):
     email = Column(String(100), unique=True, index=True)
     phone = Column(String(50), nullable=False)
     address = Column(String(255), nullable=False)
-    role_id = Column(Integer, nullable=False)
+    rol = Column(Enum('Administrador', 'Funcionario', 'Docente', 'Estudiante'), nullable=False)
     password = Column(String(255), nullable=False)
     identificacion = Column(String(50), unique=True, index=True)
     nivel_academico = Column(String(50), nullable=True)
